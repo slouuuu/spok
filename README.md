@@ -62,4 +62,4 @@ docker run -p 8080:8080 -e SPOK_ADDR=:8080 spok
 
 ## License
 
-MIT
+GPL 3.0
