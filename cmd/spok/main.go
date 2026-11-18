@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/slou/spok"
+	"github.com/slouuuu/spok"
 )
 
 func main() {
