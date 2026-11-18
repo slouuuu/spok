@@ -1,3 +1,3 @@
-module github.com/slou/spok
+module github.com/slouuuu/spok
 
-go 1.26.5
+go 1.22

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/slou/spok"
+	"github.com/slouuuu/spok"
 )
 
 func main() {
@@ -25,6 +25,7 @@ func main() {
 	maxConc := flag.Int("max-concurrent", 0, "max simultaneous renders (0 = NumCPU)")
 	maxUpload := flag.Int64("max-upload", 100<<20, "max upload bytes (-1 = unlimited)")
 	allowOvr := flag.Bool("allow-overrides", false, "allow ?w=&h=&color=... query overrides")
+	cacheSize := flag.Int("cache-size", 0, "LRU cache entries for identical uploads (0 = disabled)")
 
 	// Default render settings.
 	width := flag.Int("width", 1024, "default spectrogram width")
@@ -47,6 +48,7 @@ func main() {
 		MaxConcurrent:         *maxConc,
 		MaxUploadBytes:        *maxUpload,
 		AllowRequestOverrides: *allowOvr,
+		CacheSize:             *cacheSize,
 		Logger:                logger,
 		Defaults: spok.RenderOptions{
 			Width:   *width,
