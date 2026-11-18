@@ -52,6 +52,12 @@ type Config struct {
 	// Limits bound per-request overrides. Ignored unless AllowRequestOverrides.
 	Limits RenderLimits
 
+	// CacheSize is the maximum number of rendered spectrograms retained in an
+	// in-memory LRU keyed by SHA-256(input)+RenderOptions. 0 disables caching
+	// (the default). Identical uploads with the same resolved options skip
+	// ffmpeg on a hit.
+	CacheSize int
+
 	// Logger receives structured logs. Default: slog.Default().
 	Logger *slog.Logger
 }

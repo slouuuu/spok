@@ -3,6 +3,7 @@ package spok
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -19,8 +20,9 @@ var ErrRender = errors.New("spok: render failed")
 // Service renders spectrograms. Construct it with New; it is safe for concurrent
 // use and bounds its own concurrency per Config.MaxConcurrent.
 type Service struct {
-	cfg Config
-	sem chan struct{}
+	cfg   Config
+	sem   chan struct{}
+	cache *lruCache
 }
 
 // New validates cfg, fills defaults, and returns a ready Service.
@@ -29,7 +31,11 @@ func New(cfg Config) (*Service, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
-	return &Service{cfg: cfg, sem: make(chan struct{}, cfg.MaxConcurrent)}, nil
+	return &Service{
+		cfg:   cfg,
+		sem:   make(chan struct{}, cfg.MaxConcurrent),
+		cache: newLRU(cfg.CacheSize),
+	}, nil
 }
 
 // Render reads audio from src and returns a PNG spectrogram plus the probed
@@ -55,11 +61,22 @@ func (s *Service) Render(ctx context.Context, src io.Reader, ext string, opts Re
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.RenderTimeout)
 	defer cancel()
 
-	inPath, err := s.writeTemp(src, "spok-*"+safeExt(ext))
+	// Hash the upload while writing the temp file so cache keys don't require
+	// a second pass over the bytes.
+	sum := sha256.New()
+	inPath, err := s.writeTemp(io.TeeReader(src, sum), "spok-*"+safeExt(ext))
 	if err != nil {
 		return nil, "", err
 	}
 	defer os.Remove(inPath)
+
+	var cacheKey string
+	if s.cache != nil {
+		cacheKey = makeCacheKey(sum.Sum(nil), opts)
+		if cached, cachedLabel, ok := s.cache.get(cacheKey); ok {
+			return cached, cachedLabel, nil
+		}
+	}
 
 	if opts.Overlay {
 		label = s.probe(ctx, inPath)
@@ -92,6 +109,9 @@ func (s *Service) Render(ctx context.Context, src io.Reader, ext string, opts Re
 	png, err = os.ReadFile(outPath)
 	if err != nil {
 		return nil, "", err
+	}
+	if s.cache != nil {
+		s.cache.put(cacheKey, png, label)
 	}
 	return png, label, nil
 }
